@@ -1,64 +1,52 @@
-# pybrain
+# pybrain (v0.2)
 
-Minimal runner + few-shot OpenAI helper for "LLM writes an executable Python program" workflows.
+Runner + few-shot OpenAI helper for "LLM writes an executable Python program" workflows.
 
-## Contents
+## Changes in v0.2
 
-- `pybrain/brain.py`: interactive runner
-- `pybrain/fewshot_openai.py`: few-shot prompt builder + OpenAI call helper (streaming)
+- Interactive child execution is **ON by default** (stdin inherited).
+- Child stdout/stderr are **mirrored to the console** while also being written to log files (via a shim).
+- History truncation is bounded by **lines and characters** (prevents huge histories).
 
-## Install
+## Run
 
-```bash
-pip install openai
-```
-
-Set your API key:
-
-- macOS/Linux:
-  ```bash
-  export OPENAI_API_KEY="..."
-  ```
-- Windows (PowerShell):
-  ```powershell
-  setx OPENAI_API_KEY "..."
-  ```
-
-## Run (stub mode)
-
-Stub mode does not call OpenAI. It generates a small program that emits:
-- `<AIRESULT_STATUS>SUCCESS</AIRESULT_STATUS>`
-- `<AIRESULT_STEPS_REMAINING>0</AIRESULT_STEPS_REMAINING>`
+Stub mode:
 
 ```bash
 python -m pybrain.brain
 ```
 
-## Run (few-shot OpenAI mode)
-
-Provide a JSONL file where each line is:
-`{"input":"...","output":"..."}`
+Few-shot mode:
 
 ```bash
 python -m pybrain.brain --examples generate_program_examples.jsonl --model gpt-5-mini
 ```
 
-Streaming is on by default (you see the program text as it's generated). Disable:
+Disable streaming model output:
 
 ```bash
 python -m pybrain.brain --examples generate_program_examples.jsonl --no-stream
 ```
 
-## Protocol tags
+Disable interactive child stdin:
 
-The runner scans stdout+stderr for:
+```bash
+python -m pybrain.brain --no-interactive-child
+```
+
+## Artifacts
+
+Logs and executed programs are stored under:
+
+`./.runner_session/run_XXXX/`
+
+## AIRESULT protocol
+
+The runner scans stdout+stderr for tags like:
 
 - `<AIRESULT_OPENGOAL>...</AIRESULT_OPENGOAL>` / `<AIRESULT_CLOSEGOAL>true</AIRESULT_CLOSEGOAL>`
 - `<AIRESULT_OPENDIR>...</AIRESULT_OPENDIR>` / `<AIRESULT_CLOSEDIR>...</AIRESULT_CLOSEDIR>`
 - `<AIRESULT_OPENFILE>...</AIRESULT_OPENFILE>` / `<AIRESULT_CLOSEFILE>...</AIRESULT_CLOSEFILE>`
 - `<AIRESULT_STEPS_REMAINING>N</AIRESULT_STEPS_REMAINING>`
 
-Semantics:
-- `OPENGOAL`, `OPENDIR`, `OPENFILE` add to **Observations (active)** until closed.
-- On success, if `STEPS_REMAINING > 0`, the runner reinvokes with `Input: "Continue"`.
-- Full logs are always saved to `./.runner_session/run_XXXX/`.
+These update **Observations (active)** until closed, and drive multi-step `Continue` runs.
